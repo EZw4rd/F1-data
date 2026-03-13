@@ -1,0 +1,4 @@
+f1_data_cache/
+__pycache__/
+*.pyc
+.streamlit/
