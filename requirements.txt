@@ -1,6 +1,4 @@
-fastf1
-pandas
-openpyxl
 streamlit
+pandas
+fastf1
 plotly
-numpy
