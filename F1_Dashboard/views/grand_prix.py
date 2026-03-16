@@ -38,17 +38,27 @@ def render():
     
     if t_info:
         with st.expander(f"📖 Track Overview: {t_info['CircuitName']}", expanded=True):
-            c1, c2, c3 = st.columns(3)
-            c1.metric("📏 Length", f"{t_info['Length_km']} km")
-            c2.metric("🔁 Turns", t_info['Turns'])
-            c3.metric("🚀 2026 Zones", "5 Straight / 1 Ovt k" if "Australia" in event_info_row['EventName'] else "4 Straight / 1 Ovt k")
+            col_text, col_img = st.columns([2, 1])
             
-            st.markdown(f"**💡 Key Characteristics:**")
-            st.write(", ".join(t_info['Characteristics']))
+            with col_text:
+                c1, c2, c3 = st.columns(3)
+                c1.metric("📏 Length", f"{t_info['Length_km']} km")
+                c2.metric("🔁 Turns", t_info['Turns'])
+                c3.metric("🚀 2026 Zones", "5 Straight / 1 Ovt k" if "Australia" in event_info_row['EventName'] else "4 Straight / 1 Ovt k")
+                
+                st.markdown(f"**💡 Key Characteristics:**")
+                st.write(", ".join(t_info['Characteristics']))
+                
+                st.markdown(f"**🏁 Overtaking Difficulty:** {t_info['Overtaking']}")
+                st.markdown(f"**📈 Strategic Insights:** {t_info['Strategy']}")
+                st.info(f"✨ **Fun Fact:** {t_info['FunFact']}")
             
-            st.markdown(f"**🏁 Overtaking Difficulty:** {t_info['Overtaking']}")
-            st.markdown(f"**📈 Strategic Insights:** {t_info['Strategy']}")
-            st.info(f"✨ **Fun Fact:** {t_info['FunFact']}")
+            with col_img:
+                import os
+                # Path relative to app.py in F1_Dashboard
+                img_path = os.path.join("F1_Dashboard", t_info['ImagePath'])
+                if os.path.exists(img_path):
+                    st.image(img_path, use_container_width=True)
 
     # --- SESSION SELECTOR FOR SPRINT WEEKENDS ---
     view_mode = "Main Race"

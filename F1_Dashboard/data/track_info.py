@@ -17,7 +17,8 @@ TRACK_INFO = {
         ],
         "Overtaking": "Challenging. Turn 3 is the most frequent spot. 2022 layout changes aimed to improve flow and passing.",
         "Strategy": "Moderate tire wear. Safety car probability is historically high. 2026 'Straight Mode' will be critical for managing energy on the five designated straights.",
-        "FunFact": "The circuit circles Albert Park Lake and was significantly widened in 2022 to improve racing spectacle."
+        "FunFact": "The circuit circles Albert Park Lake and was significantly widened in 2022 to improve racing spectacle.",
+        "ImagePath": "assets/australia.png"
     },
     "Chinese Grand Prix": {
         "CircuitName": "Shanghai International Circuit",
@@ -33,7 +34,8 @@ TRACK_INFO = {
         ],
         "Overtaking": "Very good. The long back straight followed by heavy braking into Turn 14 is a prime spot.",
         "Strategy": "Strategy-sensitive track. High front-end demand. Front-limited circuit. Undercut can be very powerful here.",
-        "FunFact": "The opening complex of corners (Turns 1, 2, and 3) is a unique tightening spiral that seems to never end."
+        "FunFact": "The opening complex of corners (Turns 1, 2, and 3) is a unique tightening spiral that seems to never end.",
+        "ImagePath": "assets/china.png"
     },
     "Japanese Grand Prix": {
         "CircuitName": "Suzuka International Racing Course",
@@ -49,7 +51,8 @@ TRACK_INFO = {
         ],
         "Overtaking": "Difficult. Requires precision and a mistake from the car ahead. The chicane at the end of the lap is the best chance.",
         "Strategy": "High tire degradation due to high-energy corners. Two-stop is common. Very driver-centric track.",
-        "FunFact": "Suzuka's figure-eight layout means it has both clockwise and anti-clockwise sections!"
+        "FunFact": "Suzuka's figure-eight layout means it has both clockwise and anti-clockwise sections!",
+        "ImagePath": "assets/japan.png"
     }
 }
 
