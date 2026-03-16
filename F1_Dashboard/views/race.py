@@ -6,7 +6,7 @@ from data.data_manager import get_season_schedule, get_race_laps
 from utils.styling import TEAM_COLORS, TYRE_COLORS
 
 def render():
-    st.header("🚦 Race View")
+    st.header("⚡ Race View")
     
     year = 2026
     schedule = get_season_schedule(year)
@@ -15,16 +15,35 @@ def render():
         st.error("No schedule data available.")
         return
         
-    events = schedule['EventName'] + " - " + schedule['Country']
+    from data.data_manager import get_latest_completed_round, SPRINT_FORMATS
+    
+    events = (schedule['RoundNumber'].astype(str) + ": " + schedule['EventName'] + " - " + schedule['Country']).tolist()
     event_dict = dict(zip(events, schedule['RoundNumber']))
     
-    selected_event_name = st.selectbox("Select Race:", options=list(event_dict.keys()), key="race_select")
+    latest_round = get_latest_completed_round(schedule)
+    default_idx = 0
+    try:
+        default_idx = list(event_dict.values()).index(latest_round)
+    except (ValueError, IndexError):
+        default_idx = 0
+
+    selected_event_name = st.selectbox("Select Race:", options=events, index=default_idx, key="race_select")
     round_no = event_dict[selected_event_name]
+    
+    event_info_row = schedule[schedule['RoundNumber'] == round_no].iloc[0]
+    is_sprint_weekend = event_info_row['EventFormat'] in SPRINT_FORMATS
+    
+    session_type = 'R'
+    if is_sprint_weekend:
+        st.info("🏃‍♂️ This is a Sprint Weekend.")
+        session_choice = st.radio("Select Session:", ["Race", "Sprint"], horizontal=True)
+        session_type = 'R' if session_choice == "Race" else 'S'
     
     st.markdown("---")
     
-    with st.spinner("Processing Lap Data (this may take a moment on first load)..."):
-        laps, results = get_race_laps(year, round_no)
+    with st.spinner(f"Processing {session_type} Lap Data (this may take a moment on first load)..."):
+        # Added session_type and version parameter to force cache refresh
+        laps, results, pit_stops = get_race_laps(year, round_no, session_type=session_type, reload=True)
         
     if laps is None or laps.empty:
         st.info("Lap data is not yet available for this race.")
@@ -75,6 +94,21 @@ def render():
             
     # Filter laps that have a track position
     pos_laps = laps.dropna(subset=['Position']).copy()
+    
+    # --- ADD LAP 0 (GRID POSITIONS) ---
+    if not results.empty and 'GridPosition' in results.columns:
+        grid_data = []
+        for _, row in results.iterrows():
+            grid_data.append({
+                'LapNumber': 0,
+                'Driver': row['Abbreviation'],
+                'Position': row['GridPosition'],
+                'Compound': 'START',
+                'TyreLife': 0,
+                'LapTime_s': 0
+            })
+        grid_df = pd.DataFrame(grid_data)
+        pos_laps = pd.concat([grid_df, pos_laps], ignore_index=True)
     
     fig_pos = px.line(
         pos_laps, 
@@ -217,18 +251,65 @@ def render():
     
     # --- PIT STOP SUMMARY ---
     st.markdown("---")
-    st.subheader("🛑 Pit Stop Summary")
+    st.subheader("🛑 Pit Stop Summary (Updated)")
     
     # Calculate pit stops from lap data
-    if 'IsPitLap' in laps.columns and 'PitOutTime' in laps.columns:
-        # PitOutTime is recorded on the OUT lap (the lap after the IN lap)
-        # Align it by shifting backwards per driver
+    if 'IsPitLap' in laps.columns:
+        # Align PitOutTime_Raw and PitOutTime (string)
+        laps['PitOutTime_Aligned_Raw'] = laps.groupby('Driver')['PitOutTime_Raw'].shift(-1)
         laps['PitOutTime_Aligned'] = laps.groupby('Driver')['PitOutTime'].shift(-1)
         
         pit_laps = laps[laps['IsPitLap'] == True].copy()
+        
         if not pit_laps.empty:
-            pit_summary = pit_laps[['Driver', 'LapNumber', 'Compound', 'PitInTime', 'PitOutTime_Aligned']].copy()
-            pit_summary = pit_summary.rename(columns={'PitOutTime_Aligned': 'PitOutTime'})
+            # Calculate Total Time in Pit (Lane Time)
+            pit_laps['TotalTimeInPit'] = (pit_laps['PitOutTime_Aligned_Raw'] - pit_laps['PitInTime_Raw']).dt.total_seconds()
+            
+            # Prepare summary columns
+            pit_summary = pit_laps[['Driver', 'LapNumber', 'Compound', 'PitInTime', 'PitOutTime_Aligned', 'TotalTimeInPit']].copy()
+            pit_summary = pit_summary.rename(columns={
+                'PitOutTime_Aligned': 'PitOutTime',
+                'TotalTimeInPit': 'LaneTime (s)'
+            })
+            
+            # Initialize Stationary Time column as N/A by default
+            pit_summary['StationaryTime (s)'] = "N/A"
+            
+            # Merge with pit_stops for stationary duration if available
+            if pit_stops is not None and not pit_stops.empty:
+                try:
+                    # FastF1 pit_stops 'Driver' column is usually the Driver Number (string)
+                    # We need to map it to the Abbreviation (e.g. 'NOR') for our summary table
+                    ps_subset = pit_stops[['Driver', 'Lap', 'Duration_s']].copy()
+                    
+                    # Create mapping from Results: DriverNumber -> Abbreviation
+                    if results is not None and not results.empty:
+                        # Ensure types match for mapping (DriverNumber is usually string or int)
+                        results['DriverNumber'] = results['DriverNumber'].astype(str)
+                        d_map = dict(zip(results['DriverNumber'], results['Abbreviation']))
+                        
+                        ps_subset['Driver'] = ps_subset['Driver'].astype(str).map(d_map)
+                    
+                    ps_subset = ps_subset.rename(columns={'Lap': 'LapNumber', 'Duration_s': 'Stationary_Raw'})
+                    
+                    # Ensure same types for merging
+                    ps_subset['LapNumber'] = ps_subset['LapNumber'].astype(int)
+                    pit_summary['LapNumber'] = pit_summary['LapNumber'].astype(int)
+                    
+                    # Merge on mapped Driver (Abbreviation) and LapNumber
+                    pit_summary = pd.merge(pit_summary, ps_subset, on=['Driver', 'LapNumber'], how='left')
+                    
+                    # If we have merged data, fill the StationaryTime column
+                    if 'Stationary_Raw' in pit_summary.columns:
+                        pit_summary['StationaryTime (s)'] = pit_summary['Stationary_Raw'].map(lambda x: '{:.2f}'.format(x) if pd.notnull(x) else "N/A")
+                        pit_summary = pit_summary.drop(columns=['Stationary_Raw'])
+                except Exception as e:
+                    pass # Keep the default "N/A"
+            
+            # Format LaneTime numeric column
+            if 'LaneTime (s)' in pit_summary.columns:
+                pit_summary['LaneTime (s)'] = pit_summary['LaneTime (s)'].map(lambda x: '{:.2f}'.format(x) if pd.notnull(x) else "N/A")
+
             st.dataframe(pit_summary, use_container_width=True)
         else:
             st.info("No pit stops recorded yet.")

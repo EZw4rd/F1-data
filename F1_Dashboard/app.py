@@ -31,4 +31,8 @@ elif page == "Race View":
     race.render()
 
 st.sidebar.markdown("---")
+if st.sidebar.button("🧹 Clear Data Cache"):
+    st.cache_data.clear()
+    st.rerun()
+
 st.sidebar.caption("Data provided by FastF1 & Ergast")

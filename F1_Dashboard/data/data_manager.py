@@ -10,6 +10,8 @@ fastf1.Cache.enable_cache(CACHE_DIR)
 
 import datetime
 
+SPRINT_FORMATS = ['sprint', 'sprint_qualifying', 'sprint_shootout']
+
 @st.cache_data
 def get_season_schedule(year: int):
     """
@@ -23,6 +25,22 @@ def get_season_schedule(year: int):
     except Exception as e:
         st.error(f"Failed to load season schedule: {e}")
         return None
+
+def get_latest_completed_round(schedule):
+    """
+    Returns the round number of the latest completed race based on Session5DateUtc.
+    Returns 1 if no races are completed.
+    """
+    if schedule is None or schedule.empty:
+        return 1
+    
+    now = pd.Timestamp.utcnow().tz_localize(None)
+    session_dates = pd.to_datetime(schedule['Session5DateUtc']).dt.tz_localize(None)
+    completed = schedule[session_dates < now]
+    
+    if not completed.empty:
+        return int(completed['RoundNumber'].max())
+    return 1
 
 @st.cache_data
 def get_season_standings(year: int):
@@ -57,7 +75,7 @@ def get_season_standings(year: int):
                 all_results.append(res)
                 
                 # Check for Sprint
-                if event['EventFormat'] == 'sprint':
+                if event['EventFormat'] in SPRINT_FORMATS:
                     sprint = fastf1.get_session(year, event['RoundNumber'], 'S')
                     sprint.load(telemetry=False, weather=False, messages=False, laps=False)
                     sres = sprint.results[['BroadcastName', 'TeamName', 'Points']].copy()
@@ -150,15 +168,16 @@ def get_session_results(year: int, round_number: int, session_type: str):
         return None, None
 
 @st.cache_data
-def get_race_laps(year: int, round_number: int):
+def get_race_laps(year: int, round_number: int, session_type: str = 'R', reload=False):
     """
-    Fetches detailed lap-by-lap data for a race
+    Fetches detailed lap-by-lap data for a race or sprint, including results and pit stops.
     """
     try:
-        session = fastf1.get_session(year, round_number, 'R')
+        session = fastf1.get_session(year, round_number, session_type)
         session.load(telemetry=False, weather=False, messages=False, laps=True)
         
         laps = session.laps.copy()
+        pit_stops = session.pit_stops.copy() if hasattr(session, 'pit_stops') else pd.DataFrame()
         
         # Convert timedeltas for easier plotting
         if not laps.empty:
@@ -166,13 +185,19 @@ def get_race_laps(year: int, round_number: int):
                 laps['LapTime_s'] = laps['LapTime'].dt.total_seconds()
             if 'PitInTime' in laps.columns:
                  laps['IsPitLap'] = laps['PitInTime'].notnull()
+                 laps['PitInTime_Raw'] = laps['PitInTime'] # Keep raw for calculation
                  laps['PitInTime'] = laps['PitInTime'].apply(lambda x: format_timedelta(x, include_ms=False) if pd.notnull(x) else None)
             if 'PitOutTime' in laps.columns:
+                 laps['PitOutTime_Raw'] = laps['PitOutTime']
                  laps['PitOutTime'] = laps['PitOutTime'].apply(lambda x: format_timedelta(x, include_ms=False) if pd.notnull(x) else None)
                  
-        return laps, session.results
+        if not pit_stops.empty:
+            if 'Duration' in pit_stops.columns:
+                pit_stops['Duration_s'] = pit_stops['Duration'].dt.total_seconds()
+                 
+        return laps, session.results, pit_stops
     except Exception as e:
-        return None, None
+        return None, None, None
 
 @st.cache_data
 def get_quali_laps(year: int, round_number: int):

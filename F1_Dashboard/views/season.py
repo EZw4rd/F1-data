@@ -23,11 +23,15 @@ def render():
         st.subheader("🏆 Driver Standings")
         if drivers is not None and not drivers.empty:
             
+            # Explicitly sort by points and set category order to prevent team grouping
+            drivers_sorted = drivers.sort_values("Points", ascending=False)
+            
             # Simple Bar Chart for Drivers
             fig_drivers = px.bar(
-                drivers, x="BroadcastName", y="Points", 
+                drivers_sorted, x="BroadcastName", y="Points", 
                 color="TeamName", color_discrete_map=TEAM_COLORS,
-                title="Driver Points"
+                title="Driver Points",
+                category_orders={"BroadcastName": drivers_sorted["BroadcastName"].tolist()}
             )
             fig_drivers.update_layout(
                 plot_bgcolor='#15151E',
@@ -38,20 +42,21 @@ def render():
             st.plotly_chart(fig_drivers, use_container_width=True)
 
             # Format display
-            display_df = drivers.copy()
-            st.dataframe(display_df, use_container_width=True, height=500)
+            st.dataframe(drivers_sorted, use_container_width=True, height=500)
         else:
             st.info("No race results available for this season yet.")
             
     with col2:
         st.subheader("🏎️ Constructor Standings")
         if constructors is not None and not constructors.empty:
+            constructors_sorted = constructors.sort_values("Points", ascending=False)
             
             # Simple Bar Chart for Constructors
             fig = px.bar(
-                constructors, x="TeamName", y="Points", 
+                constructors_sorted, x="TeamName", y="Points", 
                 color="TeamName", color_discrete_map=TEAM_COLORS,
-                title="Constructor Points"
+                title="Constructor Points",
+                category_orders={"TeamName": constructors_sorted["TeamName"].tolist()}
             )
             fig.update_layout(
                 plot_bgcolor='#15151E',
@@ -61,7 +66,7 @@ def render():
             )
             st.plotly_chart(fig, use_container_width=True)
             
-            st.dataframe(constructors, use_container_width=True)
+            st.dataframe(constructors_sorted, use_container_width=True)
         else:
             st.info("No constructor points available.")
 
@@ -126,6 +131,6 @@ def render():
                             st.caption(f"{event['EventName']}")
                             st.caption(f"📍 {event['Location']}")
                             st.caption(f"📅 {event['EventDate']}")
-                            if event['EventFormat'] == 'sprint':
+                            if event['EventFormat'] in ['sprint', 'sprint_qualifying', 'sprint_shootout']:
                                 st.markdown("🏃‍♂️ **Sprint Weekend**")
 
