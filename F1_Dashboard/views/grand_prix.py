@@ -29,6 +29,7 @@ def render():
     selected_event_name = st.selectbox("Select Grand Prix:", options=events, index=default_idx)
     round_no = event_dict[selected_event_name]
     
+    event_info_row = schedule[schedule['RoundNumber'] == round_no].iloc[0]
     is_sprint_weekend = event_info_row['EventFormat'] in SPRINT_FORMATS
     
     # --- TRACK OVERVIEW ---
