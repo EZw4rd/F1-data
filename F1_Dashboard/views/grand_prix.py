@@ -29,9 +29,26 @@ def render():
     selected_event_name = st.selectbox("Select Grand Prix:", options=events, index=default_idx)
     round_no = event_dict[selected_event_name]
     
-    event_info_row = schedule[schedule['RoundNumber'] == round_no].iloc[0]
     is_sprint_weekend = event_info_row['EventFormat'] in SPRINT_FORMATS
     
+    # --- TRACK OVERVIEW ---
+    from data.track_info import get_track_info
+    t_info = get_track_info(event_info_row['EventName'])
+    
+    if t_info:
+        with st.expander(f"📖 Track Overview: {t_info['CircuitName']}", expanded=True):
+            c1, c2, c3 = st.columns(3)
+            c1.metric("📏 Length", f"{t_info['Length_km']} km")
+            c2.metric("🔁 Turns", t_info['Turns'])
+            c3.metric("🚀 2026 Zones", "5 Straight / 1 Ovt k" if "Australia" in event_info_row['EventName'] else "4 Straight / 1 Ovt k")
+            
+            st.markdown(f"**💡 Key Characteristics:**")
+            st.write(", ".join(t_info['Characteristics']))
+            
+            st.markdown(f"**🏁 Overtaking Difficulty:** {t_info['Overtaking']}")
+            st.markdown(f"**📈 Strategic Insights:** {t_info['Strategy']}")
+            st.info(f"✨ **Fun Fact:** {t_info['FunFact']}")
+
     # --- SESSION SELECTOR FOR SPRINT WEEKENDS ---
     view_mode = "Main Race"
     if is_sprint_weekend:
