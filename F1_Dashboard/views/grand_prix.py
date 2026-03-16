@@ -54,11 +54,8 @@ def render():
                 st.info(f"✨ **Fun Fact:** {t_info['FunFact']}")
             
             with col_img:
-                import os
-                # Path relative to app.py in F1_Dashboard
-                img_path = os.path.join("F1_Dashboard", t_info['ImagePath'])
-                if os.path.exists(img_path):
-                    st.image(img_path, use_container_width=True)
+                if "TrackMapUrl" in t_info:
+                    st.image(t_info["TrackMapUrl"], use_container_width=True)
 
     # --- SESSION SELECTOR FOR SPRINT WEEKENDS ---
     view_mode = "Main Race"
