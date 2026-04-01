@@ -43,21 +43,25 @@ TEAM_COLORS = {
     'Haas F1 Team': '#B6BABD',
 }
 
-# We can use FastF1's built in driver colors to ensure teammates have distinct coloring
-import fastf1.plotting
-fastf1.plotting.setup_mpl(misc_mpl_mods=False, color_scheme='fastf1')
+# FastF1 plotting is imported lazily to avoid module-level failures
+_fastf1_plotting_initialized = False
 
 def get_driver_color(driver_code, team_name):
     """
     Returns a distinct hex color for a driver. Tries FastF1 native first, falls back to Team Color.
     """
+    global _fastf1_plotting_initialized
     try:
+        import fastf1.plotting
+        if not _fastf1_plotting_initialized:
+            fastf1.plotting.setup_mpl(misc_mpl_mods=False, color_scheme='fastf1')
+            _fastf1_plotting_initialized = True
         color = fastf1.plotting.driver_color(driver_code)
         if color:
             return color
     except Exception:
         pass
-    
+
     # Fallback if fastf1 doesn't know the driver
     return TEAM_COLORS.get(team_name, '#FFFFFF')
 
