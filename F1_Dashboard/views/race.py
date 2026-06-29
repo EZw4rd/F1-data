@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from data.data_manager import get_season_schedule, get_race_laps
-from utils.styling import TEAM_COLORS, TYRE_COLORS
+from utils.styling import TEAM_COLORS, TYRE_COLORS, apply_premium_chart_layout
 
 def render():
     st.header("⚡ Race View")
@@ -58,28 +58,46 @@ def render():
     if 'LapTime_s' in laps.columns:
         fastest_lap = laps.loc[laps['LapTime_s'].idxmin()]
         time_str = str(fastest_lap['LapTime']).split('days ')[-1][:9]
-        insights.append(f"🟣 **Fastest Lap:** {fastest_lap['Driver']} ({time_str} on lap {fastest_lap['LapNumber']})")
+        insights.append({
+            "label": f"Fastest Lap (Lap {fastest_lap['LapNumber']})",
+            "value": fastest_lap['Driver'],
+            "sub": f"⏱️ {time_str}"
+        })
         
     # Insight 2: Biggest Mover
     if not results.empty and 'GridPosition' in results.columns and 'Position' in results.columns:
-        # Calculate positions gained
         res_copy = results.copy()
         res_copy['PlacesGained'] = res_copy['GridPosition'] - pd.to_numeric(res_copy['Position'], errors='coerce')
         biggest_mover = res_copy.loc[res_copy['PlacesGained'].idxmax()]
         if biggest_mover['PlacesGained'] > 0:
-            insights.append(f"🚀 **Biggest Mover:** {biggest_mover['BroadcastName']} gained {int(biggest_mover['PlacesGained'])} positions (Started P{biggest_mover['GridPosition']} ➡️ Finished P{biggest_mover['Position']})")
+            insights.append({
+                "label": "Biggest Mover",
+                "value": biggest_mover['BroadcastName'].split()[-1] if ' ' in biggest_mover['BroadcastName'] else biggest_mover['BroadcastName'],
+                "sub": f"🚀 +{int(biggest_mover['PlacesGained'])} Pos (P{biggest_mover['GridPosition']} ➡️ P{biggest_mover['Position']})"
+            })
             
-    # Insight 3: Most Pit Stops or Longest Stint
+    # Insight 3: Longest Stint
     if 'Compound' in laps.columns:
         stints = laps.dropna(subset=["Compound"]).groupby(["Driver", "Stint", "Compound"])["LapNumber"].count().reset_index()
         longest_stint = stints.loc[stints['LapNumber'].idxmax()]
-        insights.append(f"🛞 **Longest Stint:** {longest_stint['Driver']} ran {longest_stint['LapNumber']} laps on the {longest_stint['Compound'].upper()} compound.")
+        insights.append({
+            "label": "Longest Stint",
+            "value": longest_stint['Driver'],
+            "sub": f"🛞 {longest_stint['LapNumber']} Laps on {longest_stint['Compound'].upper()}"
+        })
         
     if insights:
         cols = st.columns(len(insights))
         for i, insight in enumerate(insights):
             with cols[i]:
-                st.info(insight)
+                html = f'''
+                <div class="f1-card" style="margin-bottom: 20px;">
+                    <div class="f1-stat-label">{insight["label"]}</div>
+                    <div class="f1-stat-val">{insight["value"]}</div>
+                    <div style="color: #B6BABD; font-size: 0.9rem; font-weight: 600;">{insight["sub"]}</div>
+                </div>
+                '''
+                st.markdown(html, unsafe_allow_html=True)
     
     st.markdown("---")
         
@@ -117,17 +135,9 @@ def render():
         color="Driver",
         color_discrete_map=driver_color_map,
         hover_data=["Compound", "TyreLife", "LapTime_s"],
-        title="Track Position (Lower is Better)"
     )
-    
     fig_pos.update_yaxes(autorange="reversed", range=[20, 1]) # Invert Y axis, P1 at top
-    fig_pos.update_layout(
-        plot_bgcolor='#15151E',
-        paper_bgcolor='#15151E',
-        font=dict(color='white'),
-        height=600,
-        legend_title="Driver"
-    )
+    fig_pos = apply_premium_chart_layout(fig_pos, title="Track Position (Lower is Better)")
     st.plotly_chart(fig_pos, use_container_width=True)
     
     # --- GAP TO LEADER (PACE) ---
@@ -161,17 +171,10 @@ def render():
             color="Driver",
             color_discrete_map=driver_color_map,
             hover_data=["Compound", "LapTime_s"],
-            title="Time relative to Race Leader (Seconds)"
         )
         # Flip Y-axis so leader (0) is at the top, and trailing drivers go down
         fig_gap.update_yaxes(autorange="reversed")
-        fig_gap.update_layout(
-            plot_bgcolor='#15151E',
-            paper_bgcolor='#15151E',
-            font=dict(color='white'),
-            height=600,
-            legend_title="Driver"
-        )
+        fig_gap = apply_premium_chart_layout(fig_gap, title="Time Relative to Race Leader (Seconds)")
         st.plotly_chart(fig_gap, use_container_width=True)
     else:
         st.info("Insufficient lap data to calculate gap to leader.")
@@ -204,12 +207,9 @@ def render():
                 showlegend=False
             ))
             
+    fig_tyres = apply_premium_chart_layout(fig_tyres, title="Tyre Strategy Timeline", height=700)
     fig_tyres.update_layout(
         barmode='stack',
-        plot_bgcolor='#15151E',
-        paper_bgcolor='#15151E',
-        font=dict(color='white'),
-        height=700,
         yaxis={'categoryorder': 'array', 'categoryarray': ordered_drivers[::-1]} # reverse so winner is at top
     )
     st.plotly_chart(fig_tyres, use_container_width=True)
@@ -237,14 +237,8 @@ def render():
             labels=dict(x="Lap Number", y="Driver", color="Lap Time (s)"),
             aspect="auto",
             color_continuous_scale="RdYlGn_r", # Reverse: Green is faster (lower time), Red is slower
-            title="Lap Times Heatmap (Filters out Pit Stops / VSC)"
         )
-        fig_pace.update_layout(
-            plot_bgcolor='#15151E',
-            paper_bgcolor='#15151E',
-            font=dict(color='white'),
-            height=600
-        )
+        fig_pace = apply_premium_chart_layout(fig_pace, title="Lap Times Heatmap (Filters out Pit Stops / VSC)")
         st.plotly_chart(fig_pace, use_container_width=True)
     else:
         st.info("Insufficient lap data for Pace Heatmap.")

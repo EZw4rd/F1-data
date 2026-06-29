@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from data.data_manager import get_season_schedule, get_season_standings, get_team_h2h
-from utils.styling import TEAM_COLORS, get_driver_color
+from utils.styling import TEAM_COLORS, get_driver_color, apply_premium_chart_layout
 
 def render():
     st.header("🏁 2026 Season View")
@@ -30,15 +30,10 @@ def render():
             fig_drivers = px.bar(
                 drivers_sorted, x="BroadcastName", y="Points", 
                 color="TeamName", color_discrete_map=TEAM_COLORS,
-                title="Driver Points",
                 category_orders={"BroadcastName": drivers_sorted["BroadcastName"].tolist()}
             )
-            fig_drivers.update_layout(
-                plot_bgcolor='#15151E',
-                paper_bgcolor='#15151E',
-                font=dict(color='white'),
-                showlegend=False
-            )
+            fig_drivers = apply_premium_chart_layout(fig_drivers, title="Driver Points")
+            fig_drivers.update_layout(showlegend=False)
             st.plotly_chart(fig_drivers, use_container_width=True)
 
             # Format display
@@ -55,15 +50,10 @@ def render():
             fig = px.bar(
                 constructors_sorted, x="TeamName", y="Points", 
                 color="TeamName", color_discrete_map=TEAM_COLORS,
-                title="Constructor Points",
                 category_orders={"TeamName": constructors_sorted["TeamName"].tolist()}
             )
-            fig.update_layout(
-                plot_bgcolor='#15151E',
-                paper_bgcolor='#15151E',
-                font=dict(color='white'),
-                showlegend=False
-            )
+            fig = apply_premium_chart_layout(fig, title="Constructor Points")
+            fig.update_layout(showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
             
             st.dataframe(constructors_sorted, use_container_width=True)
@@ -86,15 +76,9 @@ def render():
             color="BroadcastName",
             color_discrete_map=driver_color_map,
             markers=True,
-            title="Cumulative Points over the Season",
             labels={"BroadcastName": "Driver", "CumulativePoints": "Points"}
         )
-        fig_points.update_layout(
-            plot_bgcolor='#15151E',
-            paper_bgcolor='#15151E',
-            font=dict(color='white'),
-            height=600
-        )
+        fig_points = apply_premium_chart_layout(fig_points, title="Cumulative Points over the Season")
         st.plotly_chart(fig_points, use_container_width=True)
     else:
         st.info("No points history available yet.")
@@ -105,9 +89,15 @@ def render():
         cols = st.columns(5)
         for idx, match in enumerate(h2h_stats):
             with cols[idx % 5]:
-                with st.container(border=True):
-                    st.caption(f"**{match['Team']}**")
-                    st.markdown(f"{match['Driver 1']} **{match['D1_Score']}** - **{match['D2_Score']}** {match['Driver 2']}")
+                html = f"""
+                <div class="f1-card" style="padding: 15px; text-align: center; margin-bottom: 20px;">
+                    <div style="color: #B6BABD; font-size: 0.8rem; margin-bottom: 5px;">{match['Team']}</div>
+                    <div style="font-size: 1.1rem; font-family: 'Fira Code'; font-weight: bold; color: white;">
+                        {match['Driver 1']} <span style="color: #E80020;">{match['D1_Score']}</span> - <span style="color: #E80020;">{match['D2_Score']}</span> {match['Driver 2']}
+                    </div>
+                </div>
+                """
+                st.markdown(html, unsafe_allow_html=True)
     else:
         st.info("No Head-to-Head data available yet.")
 
@@ -126,11 +116,14 @@ def render():
                 if i + j < len(clean_schedule):
                     event = clean_schedule.iloc[i + j]
                     with cols[j]:
-                        with st.container(border=True):
-                            st.markdown(f"**R{event['RoundNumber']} | {event['Country']}**")
-                            st.caption(f"{event['EventName']}")
-                            st.caption(f"📍 {event['Location']}")
-                            st.caption(f"📅 {event['EventDate']}")
-                            if event['EventFormat'] in ['sprint', 'sprint_qualifying', 'sprint_shootout']:
-                                st.markdown("🏃‍♂️ **Sprint Weekend**")
-
+                        sprint_html = "<div style='color: #FF8000; font-size: 0.8rem; margin-top: 5px;'>🏃‍♂️ SPRINT WEEKEND</div>" if event['EventFormat'] in ['sprint', 'sprint_qualifying', 'sprint_shootout'] else ""
+                        html = f"""
+                        <div class="f1-card" style="margin-bottom: 20px;">
+                            <div style="color: #E80020; font-weight: bold; font-size: 0.9rem;">ROUND {event['RoundNumber']} | {event['Country']}</div>
+                            <div style="font-size: 1.1rem; color: white; margin-top: 5px;">{event['EventName']}</div>
+                            <div style="color: #B6BABD; font-size: 0.8rem; margin-top: 5px;">📍 {event['Location']}</div>
+                            <div style="color: #B6BABD; font-size: 0.8rem;">📅 {event['EventDate']}</div>
+                            {sprint_html}
+                        </div>
+                        """
+                        st.markdown(html, unsafe_allow_html=True)

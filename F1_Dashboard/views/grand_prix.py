@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from data.data_manager import get_season_schedule, get_session_results, get_quali_laps, get_telemetry, get_latest_completed_round, SPRINT_FORMATS
-from utils.styling import get_driver_color
+from utils.styling import get_driver_color, apply_premium_chart_layout
 
 def render():
     st.header("🌍 Grand Prix View")
@@ -122,7 +122,7 @@ def render():
                         s_fastest = s_fastest.sort_values('LapTime_s')
                         hm_data = s_fastest[['Driver', 'Sector1Time', 'Sector2Time', 'Sector3Time']].set_index('Driver')
                         fig = px.imshow(hm_data, labels=dict(x="Sector", y="Driver", color="Time (s)"), x=['S1', 'S2', 'S3'], text_auto=".3f", aspect="auto", color_continuous_scale="RdYlGn_r")
-                        fig.update_layout(plot_bgcolor='#15151E', paper_bgcolor='#15151E', font=dict(color='white'), height=500)
+                        fig = apply_premium_chart_layout(fig, title="Sprint Sector Heatmap", height=500)
                         st.plotly_chart(fig, use_container_width=True)
                 except:
                     st.info("Heatmap N/A.")
@@ -160,7 +160,7 @@ def render():
                         q_fastest = q_fastest.sort_values('LapTime_s')
                         hm_data = q_fastest[['Driver', 'Sector1Time', 'Sector2Time', 'Sector3Time']].set_index('Driver')
                         fig = px.imshow(hm_data, labels=dict(x="Sector", y="Driver", color="Time (s)"), x=['S1', 'S2', 'S3'], text_auto=".3f", aspect="auto", color_continuous_scale="RdYlGn_r")
-                        fig.update_layout(plot_bgcolor='#15151E', paper_bgcolor='#15151E', font=dict(color='white'), height=600)
+                        fig = apply_premium_chart_layout(fig, title="Qualifying Sector Heatmap", height=600)
                         st.plotly_chart(fig, use_container_width=True)
                 except:
                     st.info("Heatmap N/A.")
@@ -192,7 +192,9 @@ def render():
                             fig.add_trace(go.Scatter(x=t2['Distance_km'], y=t2['Throttle'], line=dict(color=col2), showlegend=False), row=2, col=1)
                             fig.add_trace(go.Scatter(x=t1['Distance_km'], y=t1['Brake'], line=dict(color=col1), showlegend=False), row=3, col=1)
                             fig.add_trace(go.Scatter(x=t2['Distance_km'], y=t2['Brake'], line=dict(color=col2), showlegend=False), row=3, col=1)
-                            fig.update_layout(plot_bgcolor='#15151E', paper_bgcolor='#15151E', font=dict(color='white'), height=800, hovermode="x unified")
+                            
+                            fig = apply_premium_chart_layout(fig, title="", height=800)
+                            fig.update_layout(hovermode="x unified")
                             fig.update_xaxes(title_text="Distance (km)", row=3, col=1)
                             st.plotly_chart(fig, use_container_width=True)
 
